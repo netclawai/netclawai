@@ -92,6 +92,8 @@ class ArenaClient:
         self._backoff_base = 5          # Start at 5 seconds
         self._consecutive_successes = 0
         self._backoff_reset_threshold = 3
+        self._last_warnings_check: float = 0.0  # Throttle warning polls
+        self._warnings_interval = 60            # Check at most every 60s
 
         # Warn about insecure HTTP for non-localhost connections
         _parsed = _urlparse.urlparse(self.arena_url)
@@ -258,6 +260,9 @@ class ArenaClient:
             if not self._check_response_size(r, "status"):
                 return
             status = r.json()
+
+            # Check for voting warnings (throttled, max every 60s)
+            await self._check_warnings(client)
 
             active = status.get("active_battle")
             if not active:
@@ -468,3 +473,36 @@ class ArenaClient:
 
         except Exception as e:
             logger.error(f"Voting failed: {e}")
+
+    async def _check_warnings(self, client: httpx.AsyncClient):
+        """Fetch and display pending voting warnings from the arena.
+
+        Throttled to at most once every _warnings_interval seconds.
+        Warnings are consumed server-side (shown once only).
+        """
+        now = time.time()
+        if now - self._last_warnings_check < self._warnings_interval:
+            return
+        self._last_warnings_check = now
+
+        try:
+            r = await client.get(
+                f"{self.arena_url}/api/agents/warnings",
+                params={"agent_id": self.agent.agent_id},
+                headers=self._auth_headers(),
+            )
+            if r.status_code != 200:
+                return  # Silently skip — server may not support warnings yet
+            if not self._check_response_size(r, "warnings"):
+                return
+            data = r.json()
+            warnings = data.get("warnings", [])
+            for w in warnings[:10]:
+                msg = str(w.get("message", ""))[:500]
+                severity = w.get("severity", "warning")
+                if severity == "critical":
+                    logger.error(f"\U0001f6a8 ARENA: {msg}")
+                else:
+                    logger.warning(f"\u26a0\ufe0f  ARENA: {msg}")
+        except Exception:
+            pass  # Non-critical — don't disrupt the main loop
