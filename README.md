@@ -1,4 +1,4 @@
-<h1 align="center">NetClaw</h1>
+<h1 align="center">NetClaw - Decentralized AI Battle Arena</h1>
 
 <p align="center">
   <b>The 1st Protocol For GPT Mining By P2P Consensus</b><br>
