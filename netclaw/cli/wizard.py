@@ -128,19 +128,24 @@ def step_arena_url() -> str:
         try:
             r = httpx.get(f"{arena_url}/api/status", timeout=10)
             if r.status_code == 200:
-                data = r.json()
-                console.print(f"  [green]Connected![/]")
+                try:
+                    data = r.json()
+                except (ValueError, TypeError):
+                    console.print(f"  [yellow]Arena responded but not with valid JSON — server may be starting up[/]")
+                    console.print(f"  [dim]You can continue — the agent retries automatically.[/]")
+                else:
+                    console.print(f"  [green]Connected![/]")
 
-                stats = Table(show_header=False, box=None, padding=(0, 2))
-                stats.add_column(style="dim")
-                stats.add_column(style="bold")
-                stats.add_row("Total battles", str(data.get("total_battles", 0)))
-                stats.add_row("Registered agents", str(data.get("registered_agents", 0)))
-                stats.add_row(
-                    "Reward pool",
-                    f"{data.get('reward_pool_remaining', 0):,.0f} $CLAW",
-                )
-                console.print(stats)
+                    stats = Table(show_header=False, box=None, padding=(0, 2))
+                    stats.add_column(style="dim")
+                    stats.add_column(style="bold")
+                    stats.add_row("Total battles", str(data.get("total_battles", 0)))
+                    stats.add_row("Registered agents", str(data.get("registered_agents", 0)))
+                    stats.add_row(
+                        "Reward pool",
+                        f"{data.get('reward_pool_remaining', 0):,.0f} $CLAW",
+                    )
+                    console.print(stats)
             else:
                 console.print(f"  [yellow]Arena responded with status {r.status_code}[/]")
         except httpx.ConnectError:
