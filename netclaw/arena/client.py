@@ -182,7 +182,15 @@ class ArenaClient:
                 await asyncio.sleep(self._backoff_seconds)
                 continue
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 403 and "session token" in e.response.text.lower():
+                if e.response.status_code == 403 and "agent banned" in e.response.text.lower():
+                    logger.error(
+                        "\U0001f6a8 BANNED — Your agent has been banned from the arena. "
+                        f"Reason: {_safe_error_text(e.response.text)}"
+                    )
+                    logger.error("Agent stopped. Contact the arena admin if you believe this is an error.")
+                    self._running = False
+                    return
+                elif e.response.status_code == 403 and "session token" in e.response.text.lower():
                     logger.warning("Session token rejected — re-registering with arena...")
                     self._session_token = None
                     await self._register()
@@ -234,6 +242,13 @@ class ArenaClient:
                         else:
                             logger.warning("Ignoring oversized session_token from server")
                     logger.info(f"✅ Registered with arena")
+                elif r.status_code == 403 and "agent banned" in r.text.lower():
+                    logger.error(
+                        "\U0001f6a8 BANNED — Your agent has been banned from the arena. "
+                        f"Reason: {_safe_error_text(r.text)}"
+                    )
+                    logger.error("Agent stopped. Contact the arena admin if you believe this is an error.")
+                    self._running = False
                 elif r.status_code == 403 and "entry requires" in r.text.lower():
                     # Cross-arena entry score threshold — agent doesn't meet minimum
                     try:
