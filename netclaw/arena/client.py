@@ -483,7 +483,6 @@ class ArenaClient:
         now = time.time()
         if now - self._last_warnings_check < self._warnings_interval:
             return
-        self._last_warnings_check = now
 
         try:
             r = await client.get(
@@ -493,6 +492,9 @@ class ArenaClient:
             )
             if r.status_code != 200:
                 return  # Silently skip — server may not support warnings yet
+            # Update timestamp only AFTER successful response to avoid
+            # silently skipping retries on transient network failures
+            self._last_warnings_check = now
             if not self._check_response_size(r, "warnings"):
                 return
             data = r.json()
