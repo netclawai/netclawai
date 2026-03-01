@@ -297,7 +297,7 @@ class NetClawAgent:
                         battle_id=battle_id,
                         voter_agent_id=self.agent_id,
                         target_agent_id=r.agent_id,
-                        score=5.0,
+                        score=1.0,
                         reasoning="[PARSE_FALLBACK]",
                     ))
 
